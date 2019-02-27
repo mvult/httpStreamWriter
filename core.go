@@ -30,7 +30,12 @@ func (cwc compositeWriteCloser) Close() error {
 			compoundErr += fmt.Sprintf("Error on writer %v, error: %v;  ", cwc.Closers[i], err)
 		}
 	}
-	return errors.New(compoundErr)
+
+	if compoundErr == "" {
+		return errors.New(compoundErr)
+	} else {
+		return nil
+	}
 }
 
 func HttpStreamWriter(target *url.URL, boundary string, extraHeaders map[string]string, responseFunc func(r *http.Response, err error)) (io.WriteCloser, error) {
