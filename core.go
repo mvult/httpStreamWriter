@@ -32,9 +32,9 @@ func (cwc compositeWriteCloser) Close() error {
 	}
 
 	if compoundErr == "" {
-		return errors.New(compoundErr)
-	} else {
 		return nil
+	} else {
+		return errors.New(compoundErr)
 	}
 }
 
