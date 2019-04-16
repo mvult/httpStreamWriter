@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const boundary = "JwnftdsGXBsijUljzOQsjtJmqZMvbGHqgxXn"
+const boundary = "JwnftdsGXBsijUljzOQsjqJmqZMvbGHqgxXn"
 
 var current = 0
 var tests = []struct {
@@ -98,8 +98,10 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-
+	fmt.Printf("%+v\n", r)
+	fmt.Printf("%+v\n", r.Header)
 	partReader := multipart.NewReader(r.Body, boundary)
+	fmt.Printf("%+v\n", partReader)
 	buf := make([]byte, 256)
 	for {
 		part, err := partReader.NextPart()
@@ -107,7 +109,7 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("Got to MIME EOF")
 			break
 		}
-
+		fmt.Printf("%+v\n", part)
 		fmt.Println(part.Header)
 
 		for {

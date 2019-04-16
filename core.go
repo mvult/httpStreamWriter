@@ -41,16 +41,22 @@ func (cwc compositeWriteCloser) Close() error {
 func HttpStreamWriter(target *url.URL, boundary string, extraHeaders map[string]string, responseFunc func(r *http.Response, err error)) (io.WriteCloser, error) {
 	var err error
 
+	tr := http.DefaultTransport
+
 	client := &http.Client{
-		Timeout: 0,
+		Transport: tr,
+		Timeout:   0,
 	}
 
 	pipeRdr, pipeWrt := io.Pipe()
 
 	req := &http.Request{
-		Method: "POST",
-		URL:    target,
-		Body:   pipeRdr,
+		Method:        "POST",
+		URL:           target,
+		Body:          pipeRdr,
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		ContentLength: -1,
 	}
 
 	go func() {
@@ -64,6 +70,8 @@ func HttpStreamWriter(target *url.URL, boundary string, extraHeaders map[string]
 
 	mpWrt.SetBoundary(boundary)
 	partWrt, err := CreateRichFormFile(mpWrt, "Stream", extraHeaders)
+	fmt.Println("New")
+	// partWrt, err := mpWrt.CreateFormFile("fakefield", "fakefilename")
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +83,7 @@ func HttpStreamWriter(target *url.URL, boundary string, extraHeaders map[string]
 
 func CreateRichFormFile(w *multipart.Writer, fieldname string, extraHeaders map[string]string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(fieldname)))
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, escapeQuotes(fieldname), escapeQuotes("Test")))
 	h.Set("Content-Type", "application/octet-stream")
 	for k, v := range extraHeaders {
 		h.Set(k, v)
