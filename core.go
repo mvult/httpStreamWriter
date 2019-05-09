@@ -70,7 +70,7 @@ func HttpStreamWriter(target *url.URL, boundary string, extraHeaders map[string]
 
 	mpWrt.SetBoundary(boundary)
 	partWrt, err := CreateRichFormFile(mpWrt, "Stream", extraHeaders)
-	fmt.Println("New")
+
 	// partWrt, err := mpWrt.CreateFormFile("fakefield", "fakefilename")
 	if err != nil {
 		return nil, err
