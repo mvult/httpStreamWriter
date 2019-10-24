@@ -59,6 +59,8 @@ func HttpStreamWriter(target *url.URL, boundary string, extraHTTPHeaders map[str
 		ContentLength: -1,
 	}
 
+	req.Header = make(map[string][]string)
+
 	for k, v := range extraHTTPHeaders {
 		req.Header.Add(k, v)
 	}
