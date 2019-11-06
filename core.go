@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -19,9 +18,7 @@ type compositeWriteCloser struct {
 }
 
 func (cwc compositeWriteCloser) Write(b []byte) (int, error) {
-	log.Println("Writing to HTTP writer")
 	n, err := cwc.Writer.Write(b)
-	log.Println(n, err)
 	return n, err
 }
 
