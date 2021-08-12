@@ -15,18 +15,26 @@ import (
 const boundary = "JwnftdsGXBsijUljzOQsjqJmqZMvbGHqgxXn"
 
 var current = 0
-var tests = []struct {
+
+type Test struct {
 	inFile                 string
 	outFile                string
 	bytesExpected          int
 	evenliftMetadataHeader string
-}{
-	{"toSend.txt", "received.txt", 39, "s:133;u:12"},
-	{"bigVid.h264", "receivedVid.h264", 23052288, "{station:133,user:133,host:{name:\"henry\",more:\"here\"}}"},
+	url                    string
+	confirm                bool
+	duration               time.Duration
+	expectedError          bool
+}
+
+var tests = []Test{
+	{"toSend.txt", "received.txt", 39, "s:133;u:12", "http://localhost:9191/base", false, time.Duration(time.Second), false},
+	{"bigVid.h264", "receivedVid.h264", 23052288, "{station:133,user:133,host:{name:\"henry\",more:\"here\"}}", "http://localhost:9191/base", false, time.Duration(time.Second), false},
+	{"bigVid.h264", "receivedVid.h264", 23052288, "reject", "http://localhost:9191/there", true, time.Duration(time.Second * 100), true},
 }
 
 func TestReceive(t *testing.T) {
-	http.HandleFunc("/", streamHandler)
+	http.HandleFunc("/base", streamHandler)
 
 	go func() {
 		if err := http.ListenAndServe(":9191", nil); err != nil {
@@ -36,11 +44,16 @@ func TestReceive(t *testing.T) {
 
 	for i, test := range tests {
 		current = i
-		send(test.evenliftMetadataHeader, test.inFile, t)
+		send(test, t)
 	}
 }
 
 func responseFunc(r *http.Response, err error) {
+	logger.Println(r)
+	logger.Println(err)
+	if err != nil {
+		return
+	}
 	res, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		fmt.Println("trouble reading response.  Error: ", err)
@@ -48,23 +61,44 @@ func responseFunc(r *http.Response, err error) {
 	fmt.Printf("response:\n\t%s\n", res)
 }
 
-func send(metadata string, fileToOpen string, t *testing.T) {
-	u, err := url.Parse("http://localhost:9191/")
+func send(test Test, t *testing.T) {
+	u, err := url.Parse(test.url)
 	if err != nil {
 		t.Error("Can't parse URL")
 		return
 	}
 	eh := make(map[string]string)
-	eh["Evenlift-Metadata"] = metadata
+	eh["Evenlift-Metadata"] = test.evenliftMetadataHeader
+	mimeHeaders := map[string]string{}
 
-	wrt, err := HttpStreamWriter(u, boundary, eh, responseFunc)
-	if err != nil {
-		t.Error("Error creating writer")
-		return
+	var wrt io.WriteCloser
+
+	if test.confirm {
+		wrt, err = HttpStreamWriterOk(u, boundary, eh, mimeHeaders, responseFunc, test.duration)
+		if err == nil && test.expectedError {
+			t.Error("Expected error but didn't get it.")
+			return
+		}
+
+		if err != nil && !test.expectedError {
+			t.Error("Unexpected error")
+			return
+		}
+
+		if test.expectedError && err != nil {
+			logger.Printf("Succesfully received expected error: %v\n", err)
+			return
+		}
+	} else {
+		wrt, err = HttpStreamWriter(u, boundary, eh, mimeHeaders, responseFunc)
+		if err != nil {
+			t.Error("Error creating writer")
+			return
+		}
 	}
 
 	// Simulated stream
-	f, err := os.Open(fileToOpen)
+	f, err := os.Open(test.inFile)
 	if err != nil {
 		t.Error("Can't open file")
 		return
@@ -93,6 +127,13 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 	var n, total int
 
 	fmt.Println("Receiving stream")
+
+	if r.Header["Evenlift-Metadata"][0] == "reject" {
+		fmt.Println("Returning")
+		HijackAndForceClose(w)
+		return
+	}
+
 	f, err := os.Create(tests[current].outFile)
 
 	if err != nil {
