@@ -20,3 +20,5 @@ Treat a HTTP endpoint like any other golang writer, sending bytestream through s
 
 	// wrt is a writecloser you can now write to
 ```
+
+HttpStreamWriterOK allows server to respond or refuse connection.
